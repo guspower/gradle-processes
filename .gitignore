@@ -12,6 +12,7 @@
 /*.tmproj
 /ivy*
 /eclipse
+out/
 
 # default HSQL database files for production mode
 /prodDb.*
@@ -48,3 +49,8 @@
 build/
 .gradle
 .gradle-test-kit/
+
+# gradle testkit
+classes/
+native/
+

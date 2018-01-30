@@ -2,30 +2,31 @@ package com.github.jengelman.gradle.plugins.processes.tasks
 
 import com.github.jengelman.gradle.plugins.processes.ProcessHandle
 import com.github.jengelman.gradle.plugins.processes.ProcessHandleListener
-import com.github.jengelman.gradle.plugins.processes.ProcessesPlugin
 import com.github.jengelman.gradle.plugins.processes.util.PluginSpecification
 import com.github.jengelman.gradle.plugins.processes.util.TestMain
 import org.gradle.internal.classloader.ClasspathUtil
 import org.gradle.process.ExecResult
-import org.gradle.testkit.functional.ExecutionResult
+import org.gradle.testkit.runner.BuildResult
 
 class JavaForkSpec extends PluginSpecification {
-
+    
     def setup() {
-        buildFile << """
-        apply plugin: ${ProcessesPlugin.name}
-        """
+        buildFile << '''
+plugins {
+    id 'com.github.johnrengelman.processes'
+}
+'''
     }
-
+    
     @SuppressWarnings(['Println', 'ClosureAsLastMethodParameter'])
     def forkTask() {
         given:
-        File testFile = file('someFile')
-        List<URL> files = ClasspathUtil.getClasspath(this.class.classLoader)
-        buildFile << """
-        List cp = ${files.collect { 'new URL("' + it.toString() + '")' } }
+            File testFile = file('someFile')
+            List<URL> files = ClasspathUtil.getClasspath(this.class.classLoader).asURLs
+            buildFile << """
+        List cp = ${files.collect { 'new URL("' + it.toExternalForm() + '")' } }
         task javaForkMain(type: ${JavaFork.name}) {
-            classpath(cp as Object[])
+            classpath(cp)
             main = '${TestMain.name}'
             args '${testFile.absolutePath}'
             listener(new ${ProcessHandleListener.name}() {
@@ -47,14 +48,14 @@ class JavaForkSpec extends PluginSpecification {
 
         javaForkMain.finalizedBy waitForFinish
         """
-
+        
         when:
-        runner.arguments << 'javaForkMain'
-        ExecutionResult result = runner.run()
-
+            BuildResult result = runner.withArguments(['javaForkMain', '--stacktrace'])
+                .withPluginClasspath().build()
+        
         then:
-        assert result.standardOutput.contains('Process completed')
-        assert result.standardOutput.contains('Execution Started')
-        assert result.standardOutput.contains('Execution Finished')
+            assert result.output.contains('Process completed')
+            assert result.output.contains('Execution Started')
+            assert result.output.contains('Execution Finished')
     }
 }

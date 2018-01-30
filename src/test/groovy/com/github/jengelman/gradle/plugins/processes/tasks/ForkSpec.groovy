@@ -2,25 +2,26 @@ package com.github.jengelman.gradle.plugins.processes.tasks
 
 import com.github.jengelman.gradle.plugins.processes.ProcessHandle
 import com.github.jengelman.gradle.plugins.processes.ProcessHandleListener
-import com.github.jengelman.gradle.plugins.processes.ProcessesPlugin
 import com.github.jengelman.gradle.plugins.processes.util.PluginSpecification
 import org.gradle.process.ExecResult
-import org.gradle.testkit.functional.ExecutionResult
+import org.gradle.testkit.runner.BuildResult
 
 class ForkSpec extends PluginSpecification {
-
+    
     def setup() {
-        buildFile << """
-        apply plugin: ${ProcessesPlugin.name}
-        """
+        buildFile << '''
+plugins {
+    id 'com.github.johnrengelman.processes'
+}
+'''
     }
-
+    
     @SuppressWarnings('Println')
     def forkTask() {
         given:
-        File testFile = file('someFile')
-
-        buildFile << """
+            File testFile = file('someFile')
+            
+            buildFile << """
         task forkMain(type: ${Fork.name}) {
             executable = 'touch'
             workingDir = "${dir.root}"
@@ -44,14 +45,14 @@ class ForkSpec extends PluginSpecification {
 
         forkMain.finalizedBy waitForFinish
         """
-
+        
         when:
-        runner.arguments << 'forkMain'
-        ExecutionResult result = runner.run()
-
+            BuildResult result = runner.withArguments(['forkMain', '--stacktrace'])
+                .withPluginClasspath().build()
+        
         then:
-        assert result.standardOutput.contains('Process completed')
-        assert result.standardOutput.contains('Execution Started')
-        assert result.standardOutput.contains('Execution Finished')
+            assert result.output.contains('Process completed')
+            assert result.output.contains('Execution Started')
+            assert result.output.contains('Execution Finished')
     }
 }

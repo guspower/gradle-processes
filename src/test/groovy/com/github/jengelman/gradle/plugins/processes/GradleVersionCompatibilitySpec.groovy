@@ -3,22 +3,22 @@ package com.github.jengelman.gradle.plugins.processes
 import com.github.jengelman.gradle.plugins.processes.tasks.Fork
 import com.github.jengelman.gradle.plugins.processes.util.GradleVersionRunnerFactory
 import com.github.jengelman.gradle.plugins.processes.util.PluginSpecification
-import org.gradle.testkit.functional.ExecutionResult
-import org.gradle.tooling.GradleConnector
+import org.gradle.testkit.runner.BuildResult
 import spock.lang.Unroll
 
 class GradleVersionCompatibilitySpec extends PluginSpecification {
-
+    
     @Unroll
-    def 'plugin works with Gradle #version'() {
+    def 'plugin works with Gradle #gradleVersion'() {
         given:
-        File testFile = dir.newFile('touchFile')
-        runner = GradleVersionRunnerFactory.create { GradleConnector connector ->
-            connector.useGradleVersion(gradleVersion)
+            File testFile = dir.newFile('touchFile')
+            runner = GradleVersionRunnerFactory.create()
+                .withGradleVersion(gradleVersion).withPluginClasspath().withProjectDir(dir.root)
+            
+            buildFile << """
+        plugins {
+            id 'com.github.johnrengelman.processes'
         }
-        runner.directory = dir.root
-        buildFile << """
-        apply plugin: ${ProcessesPlugin.name}
 
         task forkMain(type: ${Fork.name}) {
             executable = 'touch'
@@ -35,16 +35,15 @@ class GradleVersionCompatibilitySpec extends PluginSpecification {
 
         forkMain.finalizedBy waitForFinish
         """
-
+        
         when:
-        runner.arguments << 'forkMain'
-        ExecutionResult result = runner.run()
-
+            BuildResult result = runner.withArguments('forkMain').build()
+        
         then:
-        assert result.standardOutput.contains('Process completed')
-
+            assert result.output.contains('Process completed')
+        
         where:
-        gradleVersion << ['1.8', '1.9', '1.10', '1.11', '1.12']
+            gradleVersion << ['4.5', '3.5', '1.8', '1.9', '1.10', '1.11', '1.12']
     }
-
+    
 }

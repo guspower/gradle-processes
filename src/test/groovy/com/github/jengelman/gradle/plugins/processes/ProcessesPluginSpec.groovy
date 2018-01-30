@@ -12,211 +12,212 @@ import org.junit.rules.TemporaryFolder
 import spock.lang.Specification
 
 class ProcessesPluginSpec extends Specification {
-
+    
     private Project project
-
-    @Rule TemporaryFolder tmpDir
-
+    
+    @Rule
+    TemporaryFolder tmpDir
+    
     def setup() {
         project = ProjectBuilder.builder().build()
         project.plugins.apply(ProcessesPlugin)
     }
-
+    
     def 'apply plugin with name'() {
         given:
-        project = ProjectBuilder.builder().build()
-
+            project = ProjectBuilder.builder().build()
+        
         when:
-        project.plugins.apply('com.github.johnrengelman.processes')
-
+            project.plugins.apply('com.github.johnrengelman.processes')
+        
         then:
-        assert project.plugins.hasPlugin(ProcessesPlugin)
+            assert project.plugins.hasPlugin(ProcessesPlugin)
     }
-
+    
     def 'plugin creates extension'() {
         expect:
-        assert project.plugins.hasPlugin(ProcessesPlugin)
-        assert project.extensions.getByType(ProcessesExtension)
-        assert project.extensions.findByName(ProcessesPlugin.PROCESSES_EXTENSION)
+            assert project.plugins.hasPlugin(ProcessesPlugin)
+            assert project.extensions.getByType(ProcessesExtension)
+            assert project.extensions.findByName(ProcessesPlugin.PROCESSES_EXTENSION)
     }
-
+    
     def 'extension implements async operations interface'() {
         expect:
-        def ext = project.extensions.getByType(ProcessesExtension)
-        assert ext instanceof NonBlockingProcessOperations
+            def ext = project.extensions.getByType(ProcessesExtension)
+            assert ext instanceof NonBlockingProcessOperations
     }
-
+    
     def 'fork a java process from the plugin extension'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-        List files = ClasspathUtil.getClasspath(this.class.classLoader)
-
+            File testFile = tmpDir.newFile('someFile')
+            List<File> files = ClasspathUtil.getClasspath(this.class.classLoader).asFiles
+        
         when:
-        ProcessHandle process = project.procs.javafork {
-            classpath(files as Object[])
-            main = TestMain.name
-            args testFile.absolutePath
-        }
-
+            ProcessHandle process = project.procs.javafork {
+                classpath(files)
+                main = TestMain.name
+                args testFile.absolutePath
+            }
+        
         then:
-        process.state != null
-
+            process.state != null
+        
         when:
-        ExecResult result = project.procs.waitForFinish(process)
-
+            ExecResult result = project.procs.waitForFinish(process)
+        
         then:
-        testFile.isFile()
-        result.exitValue == 0
+            testFile.isFile()
+            result.exitValue == 0
     }
-
+    
     def 'exec a java process from the plugin extension'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-        List files = ClasspathUtil.getClasspath(this.class.classLoader)
-
+            File testFile = tmpDir.newFile('someFile')
+            List<File> files = ClasspathUtil.getClasspath(this.class.classLoader).asFiles
+        
         when:
-        ExecResult result = project.procs.javaexec {
-            classpath(files as Object[])
-            main = TestMain.name
-            args testFile.absolutePath
-        }
-
+            ExecResult result = project.procs.javaexec {
+                classpath(files)
+                main = TestMain.name
+                args testFile.absolutePath
+            }
+        
         then:
-        testFile.isFile()
-        result.exitValue == 0
+            testFile.isFile()
+            result.exitValue == 0
     }
-
+    
     def 'fork a process from the plugin extension'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-
+            File testFile = tmpDir.newFile('someFile')
+        
         when:
-        ProcessHandle process = project.procs.fork {
-            executable = 'touch'
-            workingDir = tmpDir.root
-            args testFile.name
-        }
-
+            ProcessHandle process = project.procs.fork {
+                executable = 'touch'
+                workingDir = tmpDir.root
+                args testFile.name
+            }
+        
         then:
-        process.state != null
-
+            process.state != null
+        
         when:
-        ExecResult result = project.procs.waitForFinish(process)
-
+            ExecResult result = project.procs.waitForFinish(process)
+        
         then:
-        testFile.isFile()
-        result.exitValue == 0
+            testFile.isFile()
+            result.exitValue == 0
     }
-
+    
     def 'exec a process from the plugin extension'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-
+            File testFile = tmpDir.newFile('someFile')
+        
         when:
-        ExecResult result = project.procs.exec {
-            executable = 'touch'
-            workingDir = tmpDir.root
-            args testFile.name
-        }
-
+            ExecResult result = project.procs.exec {
+                executable = 'touch'
+                workingDir = tmpDir.root
+                args testFile.name
+            }
+        
         then:
-        testFile.isFile()
-        result.exitValue == 0
+            testFile.isFile()
+            result.exitValue == 0
     }
-
+    
     def 'forked java process with ignored exit value should not throw exception'() {
         when:
-        project.plugins.apply(ProcessesPlugin)
-        ProcessHandle process = project.procs.javafork {
-            main = 'org.gradle.UnknownMain'
-            ignoreExitValue = true
-        }
-
+            project.plugins.apply(ProcessesPlugin)
+            ProcessHandle process = project.procs.javafork {
+                main = 'org.gradle.UnknownMain'
+                ignoreExitValue = true
+            }
+        
         then:
-        assert process != null
-
+            assert process != null
+        
         when:
-        ExecResult result = project.procs.waitForFinish(process)
-
+            ExecResult result = project.procs.waitForFinish(process)
+        
         then:
-        assert result.exitValue != 0
+            assert result.exitValue != 0
     }
-
+    
     def 'forked java process should throw exception'() {
         when:
-        ProcessHandle process = project.procs.javafork {
-            main = 'org.gradle.UnknownMain'
-        }
-
+            ProcessHandle process = project.procs.javafork {
+                main = 'org.gradle.UnknownMain'
+            }
+        
         then:
-        assert process != null
-
+            assert process != null
+        
         when:
-        project.procs.waitForFinish(process)
-
+            project.procs.waitForFinish(process)
+        
         then:
-        thrown(ExecException)
+            thrown(ExecException)
     }
-
+    
     def 'wait for multiple forked java processes to complete'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-        File testFile2 = tmpDir.newFile('someFile2')
-        List files = ClasspathUtil.getClasspath(this.class.classLoader)
-
+            File testFile = tmpDir.newFile('someFile')
+            File testFile2 = tmpDir.newFile('someFile2')
+            List<File> files = ClasspathUtil.getClasspath(this.class.classLoader).asFiles
+        
         when:
-        ProcessHandle process = project.procs.javafork {
-            classpath(files as Object[])
-            main = TestMain.name
-            args testFile.absolutePath
-        }
-        ProcessHandle process2 = project.procs.javafork {
-            classpath(files as Object[])
-            main = TestMain.name
-            args testFile2.absolutePath
-        }
-
+            ProcessHandle process = project.procs.javafork {
+                classpath(files)
+                main = TestMain.name
+                args testFile.absolutePath
+            }
+            ProcessHandle process2 = project.procs.javafork {
+                classpath(files)
+                main = TestMain.name
+                args testFile2.absolutePath
+            }
+        
         then:
-        assert process.state != null
-        assert process2.state != null
-
+            assert process.state != null
+            assert process2.state != null
+        
         when:
-        List<ExecResult> results = project.procs.waitForFinish([process, process2])
-
+            List<ExecResult> results = project.procs.waitForFinish([process, process2])
+        
         then:
-        assert testFile.isFile()
-        assert testFile2.isFile()
-        results.each {
-            assert it.exitValue == 0
-        }
+            assert testFile.isFile()
+            assert testFile2.isFile()
+            results.each {
+                assert it.exitValue == 0
+            }
     }
-
+    
     def 'wait for multiple forked java processes to complete with ignored exit should not throw exception'() {
         given:
-        File testFile = tmpDir.newFile('someFile')
-        List files = ClasspathUtil.getClasspath(this.class.classLoader)
-
+            File testFile = tmpDir.newFile('someFile')
+            List<File> files = ClasspathUtil.getClasspath(this.class.classLoader).asFiles
+        
         when:
-        ProcessHandle process = project.procs.javafork {
-            classpath(files as Object[])
-            main = TestMain.name
-            args testFile.absolutePath
-        }
-        ProcessHandle process2 = project.procs.javafork {
-            main = 'org.gradle.UnknownMain'
-            ignoreExitValue = true
-        }
-
+            ProcessHandle process = project.procs.javafork {
+                classpath(files)
+                main = TestMain.name
+                args testFile.absolutePath
+            }
+            ProcessHandle process2 = project.procs.javafork {
+                main = 'org.gradle.UnknownMain'
+                ignoreExitValue = true
+            }
+        
         then:
-        assert process.state != null
-        assert process2.state != null
-
+            assert process.state != null
+            assert process2.state != null
+        
         when:
-        List<ExecResult> results = project.procs.waitForFinish([process, process2])
-
+            List<ExecResult> results = project.procs.waitForFinish([process, process2])
+        
         then:
-        assert testFile.isFile()
-        assert results[0].exitValue == 0
-        assert results[1].exitValue != 0
+            assert testFile.isFile()
+            assert results[0].exitValue == 0
+            assert results[1].exitValue != 0
     }
 }

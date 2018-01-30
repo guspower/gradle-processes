@@ -1,4 +1,4 @@
-apply plugin: 'bintray'
+apply plugin: 'com.jfrog.bintray'
 apply plugin: 'maven-publish'
 
 def pomConfig = {
@@ -24,7 +24,7 @@ publishing {
             from components.java
             artifact sourcesJar
             artifact javadocJar
-
+            
             pom.withXml {
                 def root = asNode()
                 root.appendNode('description', 'A gradle plugin to create and manage processes')
